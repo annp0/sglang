@@ -20,6 +20,9 @@ from sglang.multimodal_gen.configs.pipeline_configs.hunyuan import (
     HunyuanConfig,
 )
 from sglang.multimodal_gen.configs.pipeline_configs.ltx_2 import LTX2PipelineConfig
+from sglang.multimodal_gen.configs.pipeline_configs.ltx_2_distilled import (
+    LTX2DistilledPipelineConfig,
+)
 from sglang.multimodal_gen.configs.pipeline_configs.mova import MOVAPipelineConfig
 from sglang.multimodal_gen.configs.pipeline_configs.wan import (
     SelfForcingWanT2V480PConfig,
@@ -48,4 +51,5 @@ __all__ = [
     "SelfForcingWanT2V480PConfig",
     "ZImagePipelineConfig",
     "LTX2PipelineConfig",
+    "LTX2DistilledPipelineConfig",
 ]
