@@ -78,14 +78,26 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
     def verify_input(self, batch: Req, server_args: ServerArgs) -> VerificationResult:
         result = VerificationResult()
         result.add_check("prompt_embeds", batch.prompt_embeds, V.list_of_tensors)
-        result.add_check("timesteps", batch.timesteps, V.is_tensor)
         return result
 
     def _euler_step(
-        self, noisy: torch.Tensor, denoised: torch.Tensor, sigma: float, sigma_next: float
+        self, noisy: torch.Tensor, velocity: torch.Tensor, sigma: float, sigma_next: float
     ) -> torch.Tensor:
-        """Single Euler denoising step."""
-        velocity = (noisy - denoised) / sigma
+        """Single Euler denoising step.
+        
+        Args:
+            noisy: Current noisy latents
+            velocity: Predicted velocity from the model
+            sigma: Current sigma
+            sigma_next: Next sigma
+            
+        Returns:
+            Updated latents for next step
+        """
+        # Convert velocity to denoised (x0): x0 = x - sigma * v
+        denoised = noisy - sigma * velocity
+        # Euler step: x_next = x0 + sigma_next * v
+        # where v = (x - x0) / sigma = velocity
         return denoised + sigma_next * velocity
 
     def _simple_denoise(
@@ -97,28 +109,43 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
         timestep: torch.Tensor,
         batch: Req,
         server_args: ServerArgs,
+        latent_height: int,
+        latent_width: int,
+        latent_num_frames: int,
+        audio_num_frames: int,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Simple denoising without CFG."""
         device = get_local_torch_device()
         
-        # Prepare model inputs
-        model_input = torch.cat([noisy_latents, audio_latents], dim=1)
-        encoder_hidden_states = torch.cat([video_context, audio_context], dim=1)
+        # Expand timestep for batch
+        if timestep.dim() == 0:
+            timestep = timestep.unsqueeze(0)
+        batch_size = noisy_latents.shape[0]
+        timestep_video = timestep.expand(batch_size)
+        timestep_audio = timestep_video
         
-        # Run transformer
-        noise_pred = self.transformer(
-            hidden_states=model_input,
-            timestep=timestep,
-            encoder_hidden_states=encoder_hidden_states,
+        # Call transformer with separate video and audio streams
+        v_pred, a_pred = self.transformer(
+            hidden_states=noisy_latents,
+            audio_hidden_states=audio_latents,
+            encoder_hidden_states=video_context,
+            audio_encoder_hidden_states=audio_context,
+            timestep=timestep_video,
+            audio_timestep=timestep_audio,
+            encoder_attention_mask=None,
+            audio_encoder_attention_mask=None,
+            num_frames=latent_num_frames,
+            height=latent_height,
+            width=latent_width,
+            fps=batch.fps if hasattr(batch, 'fps') else 24.0,
+            audio_num_frames=audio_num_frames,
+            video_coords=None,
+            audio_coords=None,
+            return_latents=False,
             return_dict=False,
-        )[0]
+        )
         
-        # Split video and audio predictions
-        video_channels = noisy_latents.shape[1]
-        video_pred = noise_pred[:, :video_channels]
-        audio_pred = noise_pred[:, video_channels:]
-        
-        return video_pred, audio_pred
+        return v_pred, a_pred
 
     def _stage_1_denoising(
         self,
@@ -176,6 +203,12 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
         audio_latents = audio_latents * stage_1_sigmas[0]
         audio_latents = config.maybe_pack_audio_latents(audio_latents, batch_size, batch)
         
+        # Calculate audio num frames
+        if audio_latents.ndim == 3:
+            audio_num_frames_latent = audio_latents.shape[1]
+        else:
+            audio_num_frames_latent = audio_latents.shape[2]
+        
         # Euler denoising loop
         for i in range(len(stage_1_sigmas) - 1):
             sigma = stage_1_sigmas[i]
@@ -184,8 +217,8 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
             # Create timestep tensor
             timestep = torch.tensor([sigma], device=device, dtype=video_context.dtype)
             
-            # Denoise
-            video_denoised, audio_denoised = self._simple_denoise(
+            # Denoise (get velocity prediction)
+            v_video, v_audio = self._simple_denoise(
                 video_latents,
                 audio_latents,
                 video_context,
@@ -193,14 +226,18 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
                 timestep,
                 batch,
                 server_args,
+                latent_height,
+                latent_width,
+                latent_num_frames,
+                audio_num_frames_latent,
             )
             
             # Euler step
             video_latents = self._euler_step(
-                video_latents, video_denoised, sigma.item(), sigma_next.item()
+                video_latents, v_video, sigma.item(), sigma_next.item()
             )
             audio_latents = self._euler_step(
-                audio_latents, audio_denoised, sigma.item(), sigma_next.item()
+                audio_latents, v_audio, sigma.item(), sigma_next.item()
             )
         
         return video_latents, audio_latents
@@ -240,6 +277,17 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
         )
         audio_latents = audio_latents + noise_audio * noise_scale
         
+        # Calculate latent dimensions for full resolution
+        latent_height = batch.height // config.vae_scale_factor
+        latent_width = batch.width // config.vae_scale_factor
+        latent_num_frames = (batch.num_frames - 1) // config.vae_temporal_compression + 1
+        
+        # Calculate audio num frames
+        if audio_latents.ndim == 3:
+            audio_num_frames_latent = audio_latents.shape[1]
+        else:
+            audio_num_frames_latent = audio_latents.shape[2]
+        
         # Euler denoising loop
         for i in range(len(stage_2_sigmas) - 1):
             sigma = stage_2_sigmas[i]
@@ -248,8 +296,8 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
             # Create timestep tensor
             timestep = torch.tensor([sigma], device=device, dtype=video_context.dtype)
             
-            # Denoise
-            video_denoised, audio_denoised = self._simple_denoise(
+            # Denoise (get velocity prediction)
+            v_video, v_audio = self._simple_denoise(
                 video_latents,
                 audio_latents,
                 video_context,
@@ -257,14 +305,18 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
                 timestep,
                 batch,
                 server_args,
+                latent_height,
+                latent_width,
+                latent_num_frames,
+                audio_num_frames_latent,
             )
             
             # Euler step
             video_latents = self._euler_step(
-                video_latents, video_denoised, sigma.item(), sigma_next.item()
+                video_latents, v_video, sigma.item(), sigma_next.item()
             )
             audio_latents = self._euler_step(
-                audio_latents, audio_denoised, sigma.item(), sigma_next.item()
+                audio_latents, v_audio, sigma.item(), sigma_next.item()
             )
         
         return video_latents, audio_latents
