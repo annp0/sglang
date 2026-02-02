@@ -247,9 +247,13 @@ def get_model_short_name(model_id: str) -> str:
         return model_id
 
 
-def _get_config_info(model_path: str) -> Optional[ConfigInfo]:
+def _get_config_info(model_path: str, checkpoint_variant: Optional[str] = None) -> Optional[ConfigInfo]:
     """
     Gets the ConfigInfo for a given model path using mappings and detectors.
+    
+    Args:
+        model_path: Path to the model (local or HuggingFace ID)
+        checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
     """
     # 1. Exact match
     if model_path in _MODEL_HF_PATH_TO_NAME:
@@ -278,9 +282,14 @@ def _get_config_info(model_path: str) -> Optional[ConfigInfo]:
 
     pipeline_name = config.get("_class_name", "").lower()
 
+    # Create context string for detectors (includes path and variant)
+    detection_context = model_path.lower()
+    if checkpoint_variant:
+        detection_context = f"{detection_context} {checkpoint_variant.lower()}"
+
     matched_model_names = []
     for model_id, detector in _MODEL_NAME_DETECTORS:
-        if detector(model_path.lower()) or detector(pipeline_name):
+        if detector(detection_context) or detector(pipeline_name):
             logger.debug(
                 f"Matched model name '{model_id}' using a registered detector."
             )
@@ -339,6 +348,7 @@ def _get_diffusers_model_info(model_path: str) -> ModelInfo:
 def get_model_info(
     model_path: str,
     backend: Optional[Union[str, "Backend"]] = None,
+    checkpoint_variant: Optional[str] = None,
 ) -> Optional[ModelInfo]:
     """
     Resolves all necessary classes (pipeline, sampling, config) for a given model path.
@@ -350,7 +360,9 @@ def get_model_info(
        manually registered mapping based on the model path.
 
     Args:
+        model_path: Path to the model (local or HuggingFace ID)
         backend: Backend to use ('auto', 'sglang', 'diffusers'). If None, uses 'auto'.
+        checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
 
     """
     # import Backend enum here to avoid circular imports
@@ -411,7 +423,7 @@ def get_model_info(
             return None
 
     # 3. Get configuration classes (sampling, pipeline config)
-    config_info = _get_config_info(model_path)
+    config_info = _get_config_info(model_path, checkpoint_variant)
     if not config_info:
         if backend == Backend.AUTO:
             logger.warning(
@@ -446,6 +458,9 @@ def _register_configs():
     register_configs(
         sampling_param_cls=LTX2SamplingParams,
         pipeline_config_cls=LTX2PipelineConfig,
+        hf_model_paths=[
+            "Lightricks/LTX-2",  # Official HF repository with dev checkpoints (default)
+        ],
         model_detectors=[
             lambda path: "ltx" in path.lower() and "video" in path.lower() and "distilled" not in path.lower(),
             lambda path: "ltx-2" in path.lower() and "distilled" not in path.lower(),
