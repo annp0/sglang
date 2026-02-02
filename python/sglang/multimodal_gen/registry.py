@@ -247,10 +247,12 @@ def get_model_short_name(model_id: str) -> str:
         return model_id
 
 
-def _get_config_info(model_path: str, checkpoint_variant: Optional[str] = None) -> Optional[ConfigInfo]:
+def _get_config_info(
+    model_path: str, checkpoint_variant: Optional[str] = None
+) -> Optional[ConfigInfo]:
     """
     Gets the ConfigInfo for a given model path using mappings and detectors.
-    
+
     Args:
         model_path: Path to the model (local or HuggingFace ID)
         checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
@@ -266,7 +268,9 @@ def _get_config_info(model_path: str, checkpoint_variant: Optional[str] = None) 
 
         # 2. Partial match: find the best (longest) match against all registered model hf paths.
         model_name = get_model_short_name(model_path.lower())
-        all_model_hf_paths = sorted(_MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True)
+        all_model_hf_paths = sorted(
+            _MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True
+        )
         for registered_model_hf_id in all_model_hf_paths:
             registered_model_name = get_model_short_name(registered_model_hf_id.lower())
 
@@ -466,11 +470,13 @@ def _register_configs():
             "Lightricks/LTX-2",  # Official HF repository with dev checkpoints (default)
         ],
         model_detectors=[
-            lambda path: "ltx" in path.lower() and "video" in path.lower() and "distilled" not in path.lower(),
+            lambda path: "ltx" in path.lower()
+            and "video" in path.lower()
+            and "distilled" not in path.lower(),
             lambda path: "ltx-2" in path.lower() and "distilled" not in path.lower(),
         ],
     )
-    
+
     # LTX-2 Distilled
     register_configs(
         sampling_param_cls=LTX2DistilledSamplingParams,
@@ -480,7 +486,6 @@ def _register_configs():
             lambda path: "ltx2distilled" in path.lower(),
         ],
     )
-
 
     # Hunyuan
     register_configs(

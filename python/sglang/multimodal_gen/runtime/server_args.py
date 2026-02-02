@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Inspired by SGLang: https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py
 """The arguments of sglang-diffusion Inference."""
+
 import argparse
 import dataclasses
 import inspect
@@ -248,7 +249,7 @@ class ServerArgs:
     # HuggingFace specific parameters
     trust_remote_code: bool = False
     revision: str | None = None
-    
+
     # Checkpoint variant for models with multiple variants (e.g., "distilled", "dev")
     checkpoint_variant: str | None = None
 
