@@ -27,7 +27,7 @@ logger = init_logger(__name__)
 class LTX2LatentUpsamplingStage(PipelineStage):
     """
     Stage that upsamples video latents using the LatentUpsampler.
-    
+
     This stage:
     1. Un-normalizes latents using video encoder's per_channel_statistics
     2. Applies the upsampler (2x spatial upsampling)
@@ -62,9 +62,9 @@ class LTX2LatentUpsamplingStage(PipelineStage):
 class LTX2TwoStageDenoisingStage(PipelineStage):
     """
     Two-stage denoising for LTX-2 Distilled Pipeline.
-    
-    Stage 1: Generate at half resolution with 9 steps
-    Stage 2: Upsample 2x and refine with 4 steps
+
+    Stage 1: Generate at half resolution with 9 steps.
+    Stage 2: Upsample 2x and refine with 4 steps.
     """
 
     def __init__(self, transformer, scheduler, vae, audio_vae, upsampler):
@@ -88,13 +88,13 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
         self, noisy: torch.Tensor, velocity: torch.Tensor, sigma: float, sigma_next: float
     ) -> torch.Tensor:
         """Single Euler denoising step.
-        
+
         Args:
             noisy: Current noisy latents
             velocity: Predicted velocity from the model
             sigma: Current sigma
             sigma_next: Next sigma
-            
+
         Returns:
             Updated latents for next step
         """

@@ -16,7 +16,7 @@ STAGE_2_DISTILLED_SIGMA_VALUES = [0.909375, 0.725, 0.421875, 0.0]
 @dataclasses.dataclass
 class LTX2DistilledPipelineConfig(LTX2PipelineConfig):
     """Configuration for LTX-2 Distilled Pipeline.
-    
+
     This extends the base LTX2PipelineConfig with distilled-specific settings:
     - Two-stage denoising with fixed sigma values
     - Spatial upsampler for stage 2

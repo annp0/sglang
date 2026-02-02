@@ -23,11 +23,11 @@ logger = init_logger(__name__)
 class LTX2DistilledPipeline(ComposedPipelineBase):
     """
     LTX-2 Distilled Pipeline for fast, high-quality video+audio generation.
-    
+
     This pipeline uses a two-stage distilled approach:
     - Stage 1: Generate at half resolution (9 denoising steps)
     - Stage 2: Upsample 2x and refine (4 denoising steps)
-    
+
     Total: Only 13 steps vs 40+ for standard pipelines, with comparable quality.
     """
 

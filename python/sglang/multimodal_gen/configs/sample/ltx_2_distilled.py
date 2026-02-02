@@ -10,7 +10,7 @@ from sglang.multimodal_gen.configs.sample.ltx_2 import LTX2SamplingParams
 @dataclasses.dataclass
 class LTX2DistilledSamplingParams(LTX2SamplingParams):
     """Sampling parameters for LTX-2 Distilled Pipeline.
-    
+
     The distilled pipeline operates in two stages:
     - Stage 1: Generate at half resolution (9 steps)
     - Stage 2: Upsample 2x and refine (4 steps)

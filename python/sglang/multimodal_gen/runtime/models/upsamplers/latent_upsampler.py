@@ -12,7 +12,7 @@ from einops import rearrange
 class PixelShuffleND(torch.nn.Module):
     """
     N-dimensional pixel shuffle operation.
-    
+
     Args:
         dims: Number of dimensions to unshuffle (1, 2, or 3)
     """
@@ -47,7 +47,7 @@ class PixelShuffleND(torch.nn.Module):
 class ResBlock(torch.nn.Module):
     """
     Residual block for the upsampler.
-    
+
     Args:
         channels: Number of channels
         dims: Number of dimensions for convolutions (2 or 3)
@@ -77,7 +77,7 @@ class ResBlock(torch.nn.Module):
 class LatentUpsampler(torch.nn.Module):
     """
     Model to upsample VAE latents spatially and/or temporally.
-    
+
     Args:
         in_channels: Number of channels in the input latent
         mid_channels: Number of channels in the middle layers
@@ -198,12 +198,12 @@ def upsample_video(latent: torch.Tensor, video_encoder, upsampler: LatentUpsampl
     """
     Apply upsampling to the latent representation using the provided upsampler,
     with normalization and un-normalization based on the video encoder's per-channel statistics.
-    
+
     Args:
         latent: Input latent tensor of shape [B, C, F, H, W].
         video_encoder: VideoEncoder with per_channel_statistics for normalization.
         upsampler: LatentUpsampler module to perform upsampling.
-        
+
     Returns:
         torch.Tensor: Upsampled and re-normalized latent tensor.
     """
