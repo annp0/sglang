@@ -7,11 +7,11 @@ from sglang.multimodal_gen.runtime.pipelines_core.composed_pipeline_base import 
 from sglang.multimodal_gen.runtime.pipelines_core.schedule_batch import Req
 from sglang.multimodal_gen.runtime.pipelines_core.stages import (
     InputValidationStage,
+    LTX2AVDecodingStage,
     LTX2TextConnectorStage,
     TextEncodingStage,
 )
 from sglang.multimodal_gen.runtime.pipelines_core.stages.ltx_2_distilled_stages import (
-    LTX2DistilledDecodingStage,
     LTX2TwoStageDenoisingStage,
 )
 from sglang.multimodal_gen.runtime.server_args import ServerArgs
@@ -90,9 +90,10 @@ class LTX2DistilledPipeline(ComposedPipelineBase):
         )
 
         # 5. Decoding
+        # Reuse the standard LTX2AVDecodingStage since decoding logic is the same
         self.add_stage(
             stage_name="decoding_stage",
-            stage=LTX2DistilledDecodingStage(
+            stage=LTX2AVDecodingStage(
                 vae=self.get_module("vae"),
                 audio_vae=self.get_module("audio_vae"),
                 vocoder=self.get_module("vocoder"),

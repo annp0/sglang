@@ -49,7 +49,6 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.text_connector import (
 from sglang.multimodal_gen.runtime.pipelines_core.stages.ltx_2_distilled_stages import (
     LTX2LatentUpsamplingStage,
     LTX2TwoStageDenoisingStage,
-    LTX2DistilledDecodingStage,
 )
 from sglang.multimodal_gen.runtime.pipelines_core.stages.text_encoding import (
     TextEncodingStage,
@@ -79,5 +78,4 @@ __all__ = [
     "LTX2TextConnectorStage",
     "LTX2LatentUpsamplingStage",
     "LTX2TwoStageDenoisingStage",
-    "LTX2DistilledDecodingStage",
 ]

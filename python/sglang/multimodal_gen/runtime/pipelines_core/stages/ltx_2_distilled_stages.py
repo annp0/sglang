@@ -77,7 +77,11 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
 
     def verify_input(self, batch: Req, server_args: ServerArgs) -> VerificationResult:
         result = VerificationResult()
-        result.add_check("prompt_embeds", batch.prompt_embeds, V.list_of_tensors)
+        # Check that we have prompt embeddings
+        if hasattr(batch, 'prompt_embeds'):
+            result.add_check("prompt_embeds", batch.prompt_embeds, V.list_of_tensors)
+        if hasattr(batch, 'audio_prompt_embeds'):
+            result.add_check("audio_prompt_embeds", batch.audio_prompt_embeds, V.list_of_tensors)
         return result
 
     def _euler_step(
@@ -332,13 +336,20 @@ class LTX2TwoStageDenoisingStage(PipelineStage):
         self.upsampler = self.upsampler.to(device)
         
         # Get prompt embeddings (video and audio contexts)
-        if isinstance(batch.prompt_embeds, list) and len(batch.prompt_embeds) == 2:
+        # After connector stage, these are in separate lists
+        if isinstance(batch.prompt_embeds, list) and len(batch.prompt_embeds) > 0:
             video_context = batch.prompt_embeds[0].to(device)
-            audio_context = batch.prompt_embeds[1].to(device)
+        else:
+            video_context = batch.prompt_embeds.to(device)
+            
+        if hasattr(batch, 'audio_prompt_embeds'):
+            if isinstance(batch.audio_prompt_embeds, list) and len(batch.audio_prompt_embeds) > 0:
+                audio_context = batch.audio_prompt_embeds[0].to(device)
+            else:
+                audio_context = batch.audio_prompt_embeds.to(device)
         else:
             # Fallback: use same context for both
-            video_context = batch.prompt_embeds.to(device)
-            audio_context = batch.prompt_embeds.to(device)
+            audio_context = video_context
         
         # Stage 1: Denoise at half resolution
         logger.info("Stage 1: Denoising at half resolution (9 steps)")
