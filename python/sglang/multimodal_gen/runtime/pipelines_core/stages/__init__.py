@@ -46,6 +46,10 @@ from sglang.multimodal_gen.runtime.pipelines_core.stages.latent_preparation_av i
 from sglang.multimodal_gen.runtime.pipelines_core.stages.text_connector import (
     LTX2TextConnectorStage,
 )
+from sglang.multimodal_gen.runtime.pipelines_core.stages.ltx_2_distilled_stages import (
+    LTX2LatentUpsamplingStage,
+    LTX2TwoStageDenoisingStage,
+)
 from sglang.multimodal_gen.runtime.pipelines_core.stages.text_encoding import (
     TextEncodingStage,
 )
@@ -72,4 +76,6 @@ __all__ = [
     "ImageVAEEncodingStage",
     "TextEncodingStage",
     "LTX2TextConnectorStage",
+    "LTX2LatentUpsamplingStage",
+    "LTX2TwoStageDenoisingStage",
 ]
