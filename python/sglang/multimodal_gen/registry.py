@@ -255,26 +255,29 @@ def _get_config_info(model_path: str, checkpoint_variant: Optional[str] = None) 
         model_path: Path to the model (local or HuggingFace ID)
         checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
     """
-    # 1. Exact match
-    if model_path in _MODEL_HF_PATH_TO_NAME:
-        model_id = _MODEL_HF_PATH_TO_NAME[model_path]
-        logger.debug(f"Resolved model path '{model_path}' from exact path match.")
-        return _CONFIG_REGISTRY.get(model_id)
-
-    # 2. Partial match: find the best (longest) match against all registered model hf paths.
-    model_name = get_model_short_name(model_path.lower())
-    all_model_hf_paths = sorted(_MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True)
-    for registered_model_hf_id in all_model_hf_paths:
-        registered_model_name = get_model_short_name(registered_model_hf_id.lower())
-
-        if registered_model_name == model_name:
-            logger.debug(
-                f"Resolved model name '{registered_model_hf_id}' from partial path match."
-            )
-            model_id = _MODEL_HF_PATH_TO_NAME[registered_model_hf_id]
+    # If checkpoint_variant is specified, skip exact/partial matching and use detectors
+    # This allows variant-specific detection to override default HF path mappings
+    if not checkpoint_variant:
+        # 1. Exact match
+        if model_path in _MODEL_HF_PATH_TO_NAME:
+            model_id = _MODEL_HF_PATH_TO_NAME[model_path]
+            logger.debug(f"Resolved model path '{model_path}' from exact path match.")
             return _CONFIG_REGISTRY.get(model_id)
 
-    # 3. Use detectors
+        # 2. Partial match: find the best (longest) match against all registered model hf paths.
+        model_name = get_model_short_name(model_path.lower())
+        all_model_hf_paths = sorted(_MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True)
+        for registered_model_hf_id in all_model_hf_paths:
+            registered_model_name = get_model_short_name(registered_model_hf_id.lower())
+
+            if registered_model_name == model_name:
+                logger.debug(
+                    f"Resolved model name '{registered_model_hf_id}' from partial path match."
+                )
+                model_id = _MODEL_HF_PATH_TO_NAME[registered_model_hf_id]
+                return _CONFIG_REGISTRY.get(model_id)
+
+    # 3. Use detectors (always used when checkpoint_variant is specified)
     if os.path.exists(model_path):
         config = verify_model_config_and_directory(model_path)
     else:
@@ -286,6 +289,7 @@ def _get_config_info(model_path: str, checkpoint_variant: Optional[str] = None) 
     detection_context = model_path.lower()
     if checkpoint_variant:
         detection_context = f"{detection_context} {checkpoint_variant.lower()}"
+        logger.debug(f"Using checkpoint variant '{checkpoint_variant}' for detection")
 
     matched_model_names = []
     for model_id, detector in _MODEL_NAME_DETECTORS:
