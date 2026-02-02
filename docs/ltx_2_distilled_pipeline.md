@@ -47,6 +47,35 @@ The pipeline uses a two-stage distilled approach:
 
 ## Usage
 
+### Using the Official Lightricks/LTX-2 Repository
+
+The easiest way to use the distilled pipeline is with the official Lightricks/LTX-2 HuggingFace repository and the `--checkpoint-variant` flag:
+
+```bash
+# Generate with distilled checkpoint
+sglang generate \
+    --model-path Lightricks/LTX-2 \
+    --checkpoint-variant distilled \
+    --prompt "A cat playing piano" \
+    --height 1024 \
+    --width 1536 \
+    --num-frames 121
+
+# For comparison, use standard (dev) checkpoint without variant flag
+sglang generate \
+    --model-path Lightricks/LTX-2 \
+    --prompt "A cat playing piano" \
+    --height 1024 \
+    --width 1536 \
+    --num-frames 121
+```
+
+The `--checkpoint-variant distilled` flag tells SGLang to use the distilled checkpoint files (`ltx-2-19b-distilled.safetensors` or `ltx-2-19b-distilled-fp8.safetensors`) from the repository.
+
+### Using Local Model Path
+
+Alternatively, you can use a local model path with "distilled" in the folder name:
+
 ### Basic Generation
 
 ```python

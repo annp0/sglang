@@ -13,6 +13,7 @@ The SGLang-diffusion CLI provides a quick way to access the inference pipeline f
 ### Server Arguments
 
 - `--model-path {MODEL_PATH}`: Path to the model or model ID
+- `--checkpoint-variant {VARIANT}`: Checkpoint variant to use for models with multiple variants (e.g., 'distilled' for LTX-2 distilled checkpoints). Use this with official HuggingFace repositories that contain multiple checkpoint files.
 - `--vae-path {VAE_PATH}`: Path to a custom VAE model or HuggingFace model ID (e.g., `fal/FLUX.2-Tiny-AutoEncoder`). If not specified, the VAE will be loaded from the main model path.
 - `--lora-path {LORA_PATH}`: Path to a LoRA adapter (local path or HuggingFace model ID). If not specified, LoRA will not be applied.
 - `--lora-nickname {NAME}`: Nickname for the LoRA adapter. (default: `default`).

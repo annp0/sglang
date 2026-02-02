@@ -69,7 +69,10 @@ async def get_models(request: Request):
     from sglang.multimodal_gen.registry import get_model_info
 
     server_args: ServerArgs = request.app.state.server_args
-    model_info = get_model_info(server_args.model_path)
+    model_info = get_model_info(
+        server_args.model_path,
+        checkpoint_variant=server_args.checkpoint_variant,
+    )
 
     response = {
         "model_path": server_args.model_path,

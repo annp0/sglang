@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 # Inspired by SGLang: https://github.com/sgl-project/sglang/blob/main/python/sglang/srt/server_args.py
 """The arguments of sglang-diffusion Inference."""
+
 import argparse
 import dataclasses
 import inspect
@@ -248,6 +249,9 @@ class ServerArgs:
     # HuggingFace specific parameters
     trust_remote_code: bool = False
     revision: str | None = None
+
+    # Checkpoint variant for models with multiple variants (e.g., "distilled", "dev")
+    checkpoint_variant: str | None = None
 
     # Parallelism
     num_gpus: int = 1
@@ -528,6 +532,12 @@ class ServerArgs:
             type=str,
             default=ServerArgs.revision,
             help="The specific model version to use (can be a branch name, tag name, or commit id)",
+        )
+        parser.add_argument(
+            "--checkpoint-variant",
+            type=str,
+            default=ServerArgs.checkpoint_variant,
+            help="Checkpoint variant to use for models with multiple variants (e.g., 'distilled' for LTX-2 distilled checkpoints)",
         )
 
         # Parallelism

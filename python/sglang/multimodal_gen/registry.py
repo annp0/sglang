@@ -247,30 +247,41 @@ def get_model_short_name(model_id: str) -> str:
         return model_id
 
 
-def _get_config_info(model_path: str) -> Optional[ConfigInfo]:
+def _get_config_info(
+    model_path: str, checkpoint_variant: Optional[str] = None
+) -> Optional[ConfigInfo]:
     """
     Gets the ConfigInfo for a given model path using mappings and detectors.
+
+    Args:
+        model_path: Path to the model (local or HuggingFace ID)
+        checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
     """
-    # 1. Exact match
-    if model_path in _MODEL_HF_PATH_TO_NAME:
-        model_id = _MODEL_HF_PATH_TO_NAME[model_path]
-        logger.debug(f"Resolved model path '{model_path}' from exact path match.")
-        return _CONFIG_REGISTRY.get(model_id)
-
-    # 2. Partial match: find the best (longest) match against all registered model hf paths.
-    model_name = get_model_short_name(model_path.lower())
-    all_model_hf_paths = sorted(_MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True)
-    for registered_model_hf_id in all_model_hf_paths:
-        registered_model_name = get_model_short_name(registered_model_hf_id.lower())
-
-        if registered_model_name == model_name:
-            logger.debug(
-                f"Resolved model name '{registered_model_hf_id}' from partial path match."
-            )
-            model_id = _MODEL_HF_PATH_TO_NAME[registered_model_hf_id]
+    # If checkpoint_variant is specified, skip exact/partial matching and use detectors
+    # This allows variant-specific detection to override default HF path mappings
+    if not checkpoint_variant:
+        # 1. Exact match
+        if model_path in _MODEL_HF_PATH_TO_NAME:
+            model_id = _MODEL_HF_PATH_TO_NAME[model_path]
+            logger.debug(f"Resolved model path '{model_path}' from exact path match.")
             return _CONFIG_REGISTRY.get(model_id)
 
-    # 3. Use detectors
+        # 2. Partial match: find the best (longest) match against all registered model hf paths.
+        model_name = get_model_short_name(model_path.lower())
+        all_model_hf_paths = sorted(
+            _MODEL_HF_PATH_TO_NAME.keys(), key=len, reverse=True
+        )
+        for registered_model_hf_id in all_model_hf_paths:
+            registered_model_name = get_model_short_name(registered_model_hf_id.lower())
+
+            if registered_model_name == model_name:
+                logger.debug(
+                    f"Resolved model name '{registered_model_hf_id}' from partial path match."
+                )
+                model_id = _MODEL_HF_PATH_TO_NAME[registered_model_hf_id]
+                return _CONFIG_REGISTRY.get(model_id)
+
+    # 3. Use detectors (always used when checkpoint_variant is specified)
     if os.path.exists(model_path):
         config = verify_model_config_and_directory(model_path)
     else:
@@ -278,9 +289,19 @@ def _get_config_info(model_path: str) -> Optional[ConfigInfo]:
 
     pipeline_name = config.get("_class_name", "").lower()
 
+    # Create context string for detectors (includes path and variant)
+    # Note: Using space separator is safe because:
+    # 1. HuggingFace model paths don't contain spaces
+    # 2. Detectors use substring matching (e.g., "distilled" in context)
+    # 3. This allows variant to influence detection without complex parsing
+    detection_context = model_path.lower()
+    if checkpoint_variant:
+        detection_context = f"{detection_context} {checkpoint_variant.lower()}"
+        logger.debug(f"Using checkpoint variant '{checkpoint_variant}' for detection")
+
     matched_model_names = []
     for model_id, detector in _MODEL_NAME_DETECTORS:
-        if detector(model_path.lower()) or detector(pipeline_name):
+        if detector(detection_context) or detector(pipeline_name):
             logger.debug(
                 f"Matched model name '{model_id}' using a registered detector."
             )
@@ -339,6 +360,7 @@ def _get_diffusers_model_info(model_path: str) -> ModelInfo:
 def get_model_info(
     model_path: str,
     backend: Optional[Union[str, "Backend"]] = None,
+    checkpoint_variant: Optional[str] = None,
 ) -> Optional[ModelInfo]:
     """
     Resolves all necessary classes (pipeline, sampling, config) for a given model path.
@@ -350,7 +372,9 @@ def get_model_info(
        manually registered mapping based on the model path.
 
     Args:
+        model_path: Path to the model (local or HuggingFace ID)
         backend: Backend to use ('auto', 'sglang', 'diffusers'). If None, uses 'auto'.
+        checkpoint_variant: Optional checkpoint variant (e.g., "distilled")
 
     """
     # import Backend enum here to avoid circular imports
@@ -411,7 +435,7 @@ def get_model_info(
             return None
 
     # 3. Get configuration classes (sampling, pipeline config)
-    config_info = _get_config_info(model_path)
+    config_info = _get_config_info(model_path, checkpoint_variant)
     if not config_info:
         if backend == Backend.AUTO:
             logger.warning(
@@ -446,12 +470,17 @@ def _register_configs():
     register_configs(
         sampling_param_cls=LTX2SamplingParams,
         pipeline_config_cls=LTX2PipelineConfig,
+        hf_model_paths=[
+            "Lightricks/LTX-2",  # Official HF repository (matches dev and other non-distilled checkpoints by default)
+        ],
         model_detectors=[
-            lambda path: "ltx" in path.lower() and "video" in path.lower() and "distilled" not in path.lower(),
+            lambda path: "ltx" in path.lower()
+            and "video" in path.lower()
+            and "distilled" not in path.lower(),
             lambda path: "ltx-2" in path.lower() and "distilled" not in path.lower(),
         ],
     )
-    
+
     # LTX-2 Distilled
     register_configs(
         sampling_param_cls=LTX2DistilledSamplingParams,
@@ -461,7 +490,6 @@ def _register_configs():
             lambda path: "ltx2distilled" in path.lower(),
         ],
     )
-
 
     # Hunyuan
     register_configs(
