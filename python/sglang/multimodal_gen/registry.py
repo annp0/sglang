@@ -290,6 +290,10 @@ def _get_config_info(
     pipeline_name = config.get("_class_name", "").lower()
 
     # Create context string for detectors (includes path and variant)
+    # Note: Using space separator is safe because:
+    # 1. HuggingFace model paths don't contain spaces
+    # 2. Detectors use substring matching (e.g., "distilled" in context)
+    # 3. This allows variant to influence detection without complex parsing
     detection_context = model_path.lower()
     if checkpoint_variant:
         detection_context = f"{detection_context} {checkpoint_variant.lower()}"
@@ -467,7 +471,7 @@ def _register_configs():
         sampling_param_cls=LTX2SamplingParams,
         pipeline_config_cls=LTX2PipelineConfig,
         hf_model_paths=[
-            "Lightricks/LTX-2",  # Official HF repository with dev checkpoints (default)
+            "Lightricks/LTX-2",  # Official HF repository (matches dev and other non-distilled checkpoints by default)
         ],
         model_detectors=[
             lambda path: "ltx" in path.lower()
